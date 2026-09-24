@@ -91,14 +91,20 @@ details.verify summary{cursor:pointer;color:var(--muted)}
   .item{grid-template-columns:1fr}
   .gapcol{grid-auto-flow:column;justify-content:start;align-items:baseline;gap:8px;text-align:left;padding:10px 16px}
 }
+.pgroups{display:grid;gap:8px}
+.pgroup{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pgroup>span{font-size:12px;color:var(--muted);min-width:84px}
+.gapcol .s{font-size:12px;font-family:var(--f-mono)}
+.item.loss .gapcol{background:var(--chip);color:var(--muted)}
+.mini{font-size:12px;padding:4px 10px;font-weight:500}
 footer{color:var(--muted);font-size:12px;max-width:75ch}
 </style>
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">브랜드 상품 · 플랫폼 간 가격 비교</div>
+    <div class="eyebrow">위탁판매 소싱 · 쿠팡보다 싸게 파는 곳 찾기</div>
     <h1>쿠팡 가격차 레이더 <em>₩10,000+</em></h1>
-    <p class="lede">카테고리와 기준 차액을 고르고 버튼을 한 번 누르면, Claude가 쿠팡에서 팔리는 브랜드 상품 중 네이버쇼핑·11번가·G마켓·코스트코·공식몰 등과 가격 차이가 크게 날 가능성이 높은 후보를 찾아 차액 순으로 정리합니다.</p>
+    <p class="lede">버튼 한 번이면 Claude가 쿠팡에서 팔리는 브랜드 상품 중 다른 곳에서 1만원 이상 싸게 살 수 있는 후보를 찾습니다. 오픈마켓, 홈쇼핑, 전문몰, 도매·위탁몰, 해외직구까지 비교하고, 쿠팡 수수료와 추가비용을 뺀 예상 순이익 순으로 정렬합니다.</p>
   </header>
 
   <section class="panel" aria-label="리서치 조건">
@@ -107,25 +113,26 @@ footer{color:var(--muted);font-size:12px;max-width:75ch}
       <div class="chips" id="cats"></div>
     </div>
     <div class="field">
-      <span class="lbl">비교 플랫폼 (여러 개 선택)</span>
-      <div class="chips" id="plats"></div>
+      <span class="lbl">매입처 플랫폼 (여러 개 선택)</span>
+      <div class="pgroups" id="plats"></div>
+      <div class="chips"><button class="chip mini" id="pAll" type="button">전체 선택</button><button class="chip mini" id="pNone" type="button">전체 해제</button></div>
     </div>
     <div class="row">
       <div class="field">
-        <label for="minGap">최소 차액 (원)</label>
+        <label for="minGap">최소 가격차 (원)</label>
         <input type="number" id="minGap" value="10000" min="0" step="1000">
       </div>
       <div class="field">
-        <label for="count">후보 수</label>
-        <select id="count"><option>10</option><option selected>15</option><option>20</option></select>
+        <label for="fee">쿠팡 수수료 (%)</label>
+        <input type="number" id="fee" value="10.8" min="0" max="40" step="0.1">
       </div>
       <div class="field">
-        <label for="dir">방향</label>
-        <select id="dir">
-          <option value="both" selected>양방향</option>
-          <option value="coupang_cheaper">쿠팡이 더 싼 상품</option>
-          <option value="coupang_pricier">쿠팡이 더 비싼 상품</option>
-        </select>
+        <label for="extra">추가비용 (원/개)</label>
+        <input type="number" id="extra" value="3000" min="0" step="500">
+      </div>
+      <div class="field">
+        <label for="count">후보 수</label>
+        <select id="count"><option>10</option><option selected>15</option><option>20</option><option>30</option></select>
       </div>
       <div class="field" style="flex:1 1 220px">
         <label for="brands">관심 브랜드 (선택, 쉼표 구분)</label>
@@ -138,7 +145,7 @@ footer{color:var(--muted);font-size:12px;max-width:75ch}
       <span class="status" id="status" role="status" aria-live="polite"></span>
     </div>
     <div class="progress" id="progress" hidden><i></i></div>
-    <p class="notice">AI가 알려주는 가격은 학습된 시세를 바탕으로 한 <b>추정치</b>입니다. 실시간 가격이 아니므로, 각 카드의 검색 링크로 현재가를 확인한 뒤 <b>검증</b>에 실제 가격을 입력하세요. 검증한 차액이 기준 이상이면 초록색으로 표시됩니다.</p>
+    <p class="notice">AI가 알려주는 가격은 학습된 시세를 바탕으로 한 <b>추정치</b>이고 실시간 가격이 아닙니다. 카드의 링크로 쿠팡 판매가와 매입처 가격을 확인한 뒤 <b>검증</b>에 입력하세요. 순이익은 쿠팡가 × (1 − 수수료) − 매입가 − 추가비용으로 계산합니다. 수수료는 카테고리마다 다르니 판매할 카테고리 기준으로 바꿔 넣으세요.</p>
   </section>
 
   <section class="panel" aria-label="결과">
@@ -152,122 +159,159 @@ footer{color:var(--muted);font-size:12px;max-width:75ch}
     <div class="list" id="list"></div>
   </section>
 
-  <footer>코스트코는 회원 전용이라 가격을 보려면 로그인이 필요할 수 있고, 대용량 구성이 많아 같은 수량 기준으로 비교해야 합니다. 검증 입력값은 이 브라우저에만 저장됩니다. 가격은 쿠폰·카드할인·배송비·옵션에 따라 달라지므로 같은 모델명·용량·구성인지 꼭 확인하세요.</footer>
+  <footer>위탁판매 전에 확인할 것: 쿠팡은 같은 상품을 하나의 상품 페이지로 묶어 가장 싼 판매자를 대표로 보여 주므로(아이템위너), 기존 최저가보다 싸게 팔아야 주문이 들어옵니다. 브랜드사가 온라인 유통을 제한하거나 정품 인증을 요구하는 상품, KC인증·통관이 필요한 해외 상품, 1인 구매 수량이 제한된 특가·쿠폰가는 재판매가 어렵거나 막힐 수 있습니다. 검증 입력값은 이 브라우저에만 저장됩니다.</footer>
 </div>
 
 <script>
 (function(){
-const CATS=["가전","생활가전","주방","뷰티","건강식품","식품","유아동","패션잡화","스포츠·아웃도어","디지털","반려동물","생활용품"];
-const PLATS=["네이버쇼핑","11번가","G마켓","SSG","코스트코","브랜드 공식몰","해외직구"];
+const CATS=["가전","생활가전","주방","뷰티","건강식품","식품","유아동","패션잡화","스포츠·아웃도어","디지털","반려동물","생활용품","문구·완구","자동차용품"];
+const PGROUPS=[
+  ["오픈마켓",["네이버 스마트스토어","11번가","G마켓","옥션","롯데ON"]],
+  ["종합몰·홈쇼핑",["SSG·이마트몰","홈플러스","GS샵","CJ온스타일","현대Hmall","롯데홈쇼핑"]],
+  ["전문몰",["올리브영","롯데하이마트","컬리","무신사","오늘의집","다이소몰"]],
+  ["창고형·공식몰",["코스트코","트레이더스","브랜드 공식몰"]],
+  ["도매·위탁",["도매꾹","도매매","오너클랜","온채널"]],
+  ["해외직구",["알리익스프레스","테무","아이허브","아마존","타오바오·1688"]]
+];
+const ALLP=PGROUPS.flatMap(g=>g[1]);
 const $=id=>document.getElementById(id);
-const won=n=>(n==null||isNaN(n))?"—":"₩"+Math.round(n).toLocaleString("ko-KR");
+const won=n=>(n==null||isNaN(n))?"—":(n<0?"−":"")+"₩"+Math.abs(Math.round(n)).toLocaleString("ko-KR");
 const store={
   get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
   set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 };
 let selected=new Set(store.get("cpg.cats",["가전","뷰티","건강식품"]));
-let plats=new Set(store.get("cpg.plats",["네이버쇼핑","11번가","G마켓","코스트코","브랜드 공식몰","해외직구"]));
+let plats=new Set(store.get("cpg.plats2",ALLP));
 let verify=store.get("cpg.verify",{});
 let items=store.get("cpg.last",null);
 let isSample=false;
 if(!items){isSample=true;items=[
-  {brand:"예시브랜드A",product:"무선 청소기 (예시)",model:"MODEL-A1",category:"가전",coupangPrice:489000,otherPlatform:"네이버쇼핑",otherPrice:452000,reason:"예시 행입니다. 공식 스토어 쿠폰이 붙는 상품은 오픈마켓 최저가가 쿠팡보다 낮은 경우가 많습니다.",confidence:"중"},
-  {brand:"예시브랜드B",product:"전동칫솔 본체+리필 세트 (예시)",model:"MODEL-B2",category:"뷰티",coupangPrice:129000,otherPlatform:"11번가",otherPrice:145000,reason:"예시 행입니다. 로켓배송 대량 매입 상품은 쿠팡이 더 싼 경우가 있습니다.",confidence:"중"},
-  {brand:"예시브랜드C",product:"오메가3 180캡슐 (예시)",model:"MODEL-C3",category:"건강식품",coupangPrice:52000,otherPlatform:"해외직구",otherPrice:38000,reason:"예시 행입니다. 수입 영양제는 직구가와 국내 판매가 차이가 큽니다.",confidence:"낮음"}
+  {brand:"예시브랜드A",product:"무선 청소기 (예시)",model:"MODEL-A1",category:"가전",coupangPrice:489000,otherPlatform:"네이버 스마트스토어",otherPrice:432000,reason:"예시 행입니다. 공식 스토어 쿠폰과 포인트가 붙으면 오픈마켓 실구매가가 쿠팡보다 낮아지는 경우가 있습니다.",buyNote:"스토어 쿠폰 적용가",risk:"브랜드 유통 제한 여부 확인",confidence:"중"},
+  {brand:"예시브랜드B",product:"전동칫솔 리필모 8개입 (예시)",model:"MODEL-B2",category:"뷰티",coupangPrice:59000,otherPlatform:"도매꾹",otherPrice:41000,reason:"예시 행입니다. 도매몰은 수량 구매 단가가 낮고 위탁배송을 지원하기도 합니다.",buyNote:"10개 이상 도매가",risk:"정품 유통 경로 확인",confidence:"낮음"},
+  {brand:"예시브랜드C",product:"오메가3 180캡슐 (예시)",model:"MODEL-C3",category:"건강식품",coupangPrice:52000,otherPlatform:"아이허브",otherPrice:34000,reason:"예시 행입니다. 수입 영양제는 해외 판매가와 국내 판매가 차이가 큽니다.",buyNote:"해외배송비 별도",risk:"건강기능식품은 수입 신고 없이 국내 재판매 불가",confidence:"낮음"}
 ];}
 
-// category chips
-const catsEl=$("cats");
-CATS.forEach(c=>{
+function chip(label,on,toggle){
   const b=document.createElement("button");
-  b.type="button";b.className="chip";b.textContent=c;
-  b.setAttribute("aria-pressed",selected.has(c));
-  b.onclick=()=>{selected.has(c)?selected.delete(c):selected.add(c);b.setAttribute("aria-pressed",selected.has(c));store.set("cpg.cats",[...selected])};
-  catsEl.appendChild(b);
-});
+  b.type="button";b.className="chip";b.textContent=label;
+  b.setAttribute("aria-pressed",on);
+  b.onclick=()=>b.setAttribute("aria-pressed",toggle());
+  return b;
+}
+CATS.forEach(c=>$("cats").appendChild(chip(c,selected.has(c),()=>{selected.has(c)?selected.delete(c):selected.add(c);store.set("cpg.cats",[...selected]);return selected.has(c)})));
+function drawPlats(){
+  const root=$("plats");root.textContent="";
+  PGROUPS.forEach(([g,list])=>{
+    const row=document.createElement("div");row.className="pgroup";
+    const t=document.createElement("span");t.textContent=g;row.appendChild(t);
+    list.forEach(p=>row.appendChild(chip(p,plats.has(p),()=>{plats.has(p)?plats.delete(p):plats.add(p);store.set("cpg.plats2",[...plats]);return plats.has(p)})));
+    root.appendChild(row);
+  });
+}
+drawPlats();
+$("pAll").onclick=()=>{plats=new Set(ALLP);store.set("cpg.plats2",ALLP);drawPlats()};
+$("pNone").onclick=()=>{plats=new Set();store.set("cpg.plats2",[]);drawPlats()};
 
-const platsEl=$("plats");
-PLATS.forEach(c=>{
-  const b=document.createElement("button");
-  b.type="button";b.className="chip";b.textContent=c;
-  b.setAttribute("aria-pressed",plats.has(c));
-  b.onclick=()=>{plats.has(c)?plats.delete(c):plats.add(c);b.setAttribute("aria-pressed",plats.has(c));store.set("cpg.plats",[...plats])};
-  platsEl.appendChild(b);
-});
-
+const SEARCH={
+  "쿠팡":"https://www.coupang.com/np/search?q=",
+  "네이버":"https://search.shopping.naver.com/search/all?query=",
+  "다나와":"https://search.danawa.com/dsearch.php?query=",
+  "11번가":"https://search.11st.co.kr/Search.tmall?kwd=",
+  "G마켓":"https://www.gmarket.co.kr/n/search?keyword=",
+  "옥션":"https://www.auction.co.kr/n/search?keyword=",
+  "롯데ON":"https://www.lotteon.com/search/search/search.ecn?render=search&platform=pc&q=",
+  "SSG":"https://www.ssg.com/search.ssg?query=",
+  "코스트코":"https://www.costco.co.kr/search?text=",
+  "올리브영":"https://www.oliveyoung.co.kr/store/search/getSearchMain.do?query=",
+  "컬리":"https://www.kurly.com/search?sword=",
+  "GS샵":"https://www.gsshop.com/shop/search/main.gs?tq=",
+  "알리익스프레스":"https://www.aliexpress.com/wholesale?SearchText=",
+  "아이허브":"https://kr.iherb.com/search?kw=",
+  "아마존":"https://www.amazon.com/s?k="
+};
+function sourceLink(platform,q){
+  const key=Object.keys(SEARCH).find(k=>k!=="쿠팡"&&(platform||"").includes(k));
+  if(key) return SEARCH[key]+q;
+  return "https://www.google.com/search?q="+encodeURIComponent(platform||"")+"+"+q;
+}
 const keyOf=it=>(it.brand+"|"+(it.model||it.product)).toLowerCase();
 function links(it){
   const q=encodeURIComponent([it.brand,it.model||it.product].join(" "));
-  return [
-    ["쿠팡","https://www.coupang.com/np/search?q="+q],
-    ["네이버쇼핑","https://search.shopping.naver.com/search/all?query="+q],
-    ["다나와","https://search.danawa.com/dsearch.php?query="+q],
-    ["11번가","https://search.11st.co.kr/Search.tmall?kwd="+q],
-    ["G마켓","https://www.gmarket.co.kr/n/search?keyword="+q],
-    ["코스트코","https://www.costco.co.kr/search?text="+q]
-  ];
+  const out=[["쿠팡",SEARCH["쿠팡"]+q],[(it.otherPlatform||"매입처"),sourceLink(it.otherPlatform,q)]];
+  if(!(it.otherPlatform||"").includes("네이버")) out.push(["네이버쇼핑",SEARCH["네이버"]+q]);
+  out.push(["다나와",SEARCH["다나와"]+q]);
+  return out;
 }
-function gapOf(it){
+function calc(it){
   const v=verify[keyOf(it)];
-  if(v&&v.cp>0&&v.op>0) return {gap:Math.abs(v.cp-v.op),cp:v.cp,op:v.op,verified:true};
-  return {gap:Math.abs((+it.coupangPrice||0)-(+it.otherPrice||0)),cp:+it.coupangPrice,op:+it.otherPrice,verified:false};
+  const ver=!!(v&&v.cp>0&&v.op>0);
+  const cp=ver?v.cp:+it.coupangPrice, op=ver?v.op:+it.otherPrice;
+  const fee=(+$("fee").value||0)/100, extra=+$("extra").value||0;
+  const profit=cp*(1-fee)-op-extra;
+  return {cp,op,gap:cp-op,profit,rate:cp>0?profit/cp:0,verified:ver};
 }
 
 function render(){
   const min=+$("minGap").value||0;
   const only=$("onlyOk").checked;
-  const rows=items.map(it=>({it,g:gapOf(it)}))
-    .filter(r=>!only||(r.g.verified&&r.g.gap>=min))
-    .sort((a,b)=>b.g.gap-a.g.gap);
+  const rows=items.map(it=>({it,g:calc(it)}))
+    .filter(r=>r.g.gap>0)
+    .filter(r=>!only||(r.g.verified&&r.g.gap>=min&&r.g.profit>0))
+    .sort((a,b)=>b.g.profit-a.g.profit);
   const list=$("list");list.textContent="";
   const pass=rows.filter(r=>r.g.gap>=min);
-  const okCount=rows.filter(r=>r.g.verified&&r.g.gap>=min).length;
+  const okCount=rows.filter(r=>r.g.verified&&r.g.gap>=min&&r.g.profit>0).length;
   $("summary").innerHTML="";
-  [[rows.length,"후보"],[pass.length,"기준 이상 ("+won(min)+")"],[okCount,"검증 통과"],[rows.length?won(rows[0].g.gap):"—","최대 차액"]].forEach(([n,l])=>{
+  [[rows.length,"후보"],[pass.length,"가격차 "+won(min)+" 이상"],[okCount,"검증 통과"],[rows.length?won(rows[0].g.profit):"—","최대 예상 순이익"]].forEach(([n,l])=>{
     const d=document.createElement("div");d.innerHTML="<b></b> <span></span>";
     d.querySelector("b").textContent=n;d.querySelector("span").textContent=l;$("summary").appendChild(d);
   });
   if(isSample){const d=document.createElement("div");d.innerHTML='<span class="tag sample">예시 데이터 · 리서치를 실행하면 교체됩니다</span>';$("summary").appendChild(d)}
-  if(!rows.length){list.innerHTML='<div class="empty">조건에 맞는 상품이 없습니다. 최소 차액을 낮추거나 리서치를 다시 실행하세요.</div>';return}
+  if(!rows.length){list.innerHTML='<div class="empty">조건에 맞는 상품이 없습니다. 매입처를 더 고르거나 리서치를 다시 실행하세요.</div>';return}
   rows.forEach(({it,g})=>{
-    const k=keyOf(it);const below=g.gap<min;
+    const k=keyOf(it);const below=g.gap<min;const loss=g.profit<=0;
     const el=document.createElement("article");
-    el.className="item"+(g.verified&&!below?" verified":"");
+    el.className="item"+(loss?" loss":(g.verified&&!below?" verified":""));
     if(below) el.style.opacity=".6";
-    const coupangCheaper=g.cp<g.op;
     el.innerHTML=`
-      <div class="gapcol"><span class="u">${g.verified?"검증 차액":"예상 차액"}</span><span class="n"></span><span class="u"></span></div>
+      <div class="gapcol"><span class="u"></span><span class="n"></span><span class="s"></span></div>
       <div class="body">
         <div class="top"><span class="brand"></span><span class="name"></span><span class="tag"></span></div>
         <div class="prices">
-          <div class="price ${coupangCheaper?"cheap":""}"><small>쿠팡</small><b></b></div>
-          <div class="price ${coupangCheaper?"":"cheap"}"><small class="op"></small><b></b></div>
+          <div class="price cheap"><small class="op"></small><b></b></div>
+          <div class="price"><small>쿠팡 판매가</small><b></b></div>
+          <div class="price"><small>가격차</small><b></b></div>
         </div>
         <p class="why"></p>
         <div class="links"></div>
         <details class="verify"><summary>검증: 실제 가격 입력</summary>
           <div class="vgrid">
-            <div class="field"><label>쿠팡 현재가</label><input type="number" class="vcp" min="0" step="100"></div>
             <div class="field"><label class="vol"></label><input type="number" class="vop" min="0" step="100"></div>
+            <div class="field"><label>쿠팡 현재 최저가</label><input type="number" class="vcp" min="0" step="100"></div>
             <button class="btn vsave" type="button">저장</button>
             <button class="btn vclear" type="button">초기화</button>
           </div>
         </details>
       </div>`;
-    el.querySelector(".gapcol .n").textContent=won(g.gap);
-    el.querySelector(".gapcol .u:last-child").textContent=coupangCheaper?"쿠팡이 쌈":"타 플랫폼이 쌈";
+    el.querySelector(".gapcol .u").textContent=g.verified?"검증 순이익":"예상 순이익";
+    el.querySelector(".gapcol .n").textContent=won(g.profit);
+    el.querySelector(".gapcol .s").textContent=loss?"수수료 빼면 적자":"마진 "+(g.rate*100).toFixed(1)+"%";
     el.querySelector(".brand").textContent=it.brand;
     el.querySelector(".name").textContent=[it.product,it.model?"· "+it.model:""].join(" ");
     const tag=el.querySelector(".tag");
-    if(g.verified){tag.className="tag "+(below?"no":"ok");tag.textContent=below?"검증: 기준 미달":"검증 완료"}
+    if(g.verified){const ok=!below&&!loss;tag.className="tag "+(ok?"ok":"no");tag.textContent=ok?"검증 완료":"검증: 기준 미달"}
     else if(isSample){tag.className="tag sample";tag.textContent="예시"}
     else{tag.className="tag ai";tag.textContent="AI 추정 · 신뢰도 "+(it.confidence||"—")}
-    const b=el.querySelectorAll(".price b");b[0].textContent=won(g.cp);b[1].textContent=won(g.op);
-    el.querySelector(".op").textContent=it.otherPlatform||"타 플랫폼";
-    el.querySelector(".why").textContent=(it.category?"["+it.category+"] ":"")+(it.reason||"")+(it.unitNote?" · 단가 기준: "+it.unitNote:"");
+    const b=el.querySelectorAll(".price b");b[0].textContent=won(g.op);b[1].textContent=won(g.cp);b[2].textContent=won(g.gap);
+    el.querySelector(".op").textContent=(it.otherPlatform||"매입처")+" 매입가";
+    const parts=[(it.category?"["+it.category+"] ":"")+(it.reason||"")];
+    if(it.buyNote) parts.push("구매 조건: "+it.buyNote);
+    if(it.unitNote) parts.push("단가 기준: "+it.unitNote);
+    if(it.risk) parts.push("주의: "+it.risk);
+    el.querySelector(".why").textContent=parts.join(" · ");
     const L=el.querySelector(".links");
     links(it).forEach(([n,u])=>{const a=document.createElement("a");a.href=u;a.target="_blank";a.rel="noopener";a.textContent=n+" 검색";L.appendChild(a)});
-    el.querySelector(".vol").textContent=(it.otherPlatform||"타 플랫폼")+" 현재가";
+    el.querySelector(".vol").textContent=(it.otherPlatform||"매입처")+" 현재가";
     const v=verify[k]||{};const vcp=el.querySelector(".vcp"),vop=el.querySelector(".vop");
     vcp.value=v.cp||"";vop.value=v.op||"";
     el.querySelector(".vsave").onclick=()=>{verify[k]={cp:+vcp.value,op:+vop.value,at:Date.now()};store.set("cpg.verify",verify);render()};
@@ -284,22 +328,25 @@ ready.then(s=>{sample=s;if(!s){$("run").disabled=true;setStatus("이 화면에�
 
 function buildPrompt(){
   const cats=[...selected];const min=+$("minGap").value||10000;
-  const n=+$("count").value;const dir=$("dir").value;const brands=$("brands").value.trim();
-  const pl=[...plats];
-  const costco=pl.includes("코스트코");
-  const dirText={both:"쿠팡이 더 싸거나 더 비싼 경우 모두",coupang_cheaper:"쿠팡이 다른 플랫폼보다 더 싼 경우",coupang_pricier:"쿠팡이 다른 플랫폼보다 더 비싼 경우"}[dir];
-  return `당신은 한국 이커머스 가격 리서처입니다. 쿠팡에서 판매 중인 "브랜드" 정품 상품 가운데, 다른 플랫폼(${pl.length?pl.join(", "):"네이버쇼핑, 11번가, G마켓, 코스트코, 브랜드 공식몰, 해외직구"})과 가격 차이가 ${min.toLocaleString("ko-KR")}원 이상 날 가능성이 높은 상품 ${n}개를 찾아주세요.
+  const n=+$("count").value;const brands=$("brands").value.trim();
+  const pl=[...plats].length?[...plats]:ALLP;
+  const has=x=>pl.some(p=>p.includes(x));
+  const M=min.toLocaleString("ko-KR");
+  return `당신은 한국 이커머스 위탁판매(리셀) 소싱 리서처입니다. 사용자는 다른 플랫폼에서 싸게 사서 쿠팡에 위탁판매하려고 합니다. 따라서 "매입처 가격이 쿠팡 판매가보다 ${M}원 이상 싼" 브랜드 정품 상품만 찾아야 합니다. 쿠팡이 더 싸거나 차이가 ${M}원 미만인 상품은 절대 넣지 마세요.
 
-조건:
-- 카테고리: ${cats.length?cats.join(", "):"전체"}
-- 방향: ${dirText}
-${brands?"- 우선 검토할 브랜드: "+brands+"\n":""}- 모델명·용량·구성을 구체적으로 적어 소비자가 같은 상품을 검색해 비교할 수 있게 하세요.
-- 가격은 당신이 알고 있는 최근 시세 기준의 추정치(원)입니다. 확신이 낮으면 confidence를 "낮음"으로 두세요. 존재하지 않는 모델을 만들지 마세요.
-- 차이가 나는 구조적 이유(로켓배송 매입가, 공식몰 쿠폰, 병행수입/직구, 묶음 구성 차이, 카드 할인 등)를 reason에 한두 문장으로 쓰세요.
-${costco?`- 코스트코(코스트코코리아 온라인몰·매장)와 비교할 때는 코스트코의 대용량·묶음 구성을 쿠팡의 같은 구성(또는 같은 수량으로 환산한 가격)과 비교하고, 환산 방식을 unitNote에 적으세요(예: "1L당", "캡슐 360개 기준"). 코스트코는 회원제라 연회비가 별도이고 매장가와 온라인가가 다를 수 있다는 점을 reason에 반영하세요. 코스트코 전용 브랜드(커클랜드 등)는 쿠팡에 같은 상품이 실제로 판매되는 경우에만 넣으세요.\n`:""}- 차액이 ${min.toLocaleString("ko-KR")}원 미만인 상품은 넣지 마세요.
+찾을 상품 수: ${n}개
+카테고리: ${cats.length?cats.join(", "):"전체"}
+매입처 후보 플랫폼: ${pl.join(", ")}
+${brands?"우선 검토할 브랜드: "+brands+"\n":""}
+규칙:
+- coupangPrice는 쿠팡에서 해당 상품이 현재 팔리는 일반적인 최저 판매가(로켓배송·판매자 상품 중 낮은 쪽) 추정치입니다.
+- otherPrice는 위 매입처 후보 중 가장 싸게 살 수 있는 곳의 실구매가(상시 쿠폰·회원가 반영, 일회성 타임특가는 제외) 추정치입니다. 배송비가 따로 들면 buyNote에 적으세요.
+- 한 번 반짝 할인이 아니라 반복적으로 유지되는 가격 차이를 우선하세요. 같은 모델·용량·구성끼리 비교하고, 구성이 다르면 같은 수량으로 환산해 unitNote에 적으세요.
+${has("코스트코")||has("트레이더스")?"- 코스트코·트레이더스는 회원제·대용량이라 환산 기준을 unitNote에 적고, 매장 전용 여부를 buyNote에 적으세요.\n":""}${has("도매")||has("오너클랜")||has("온채널")?"- 도매꾹·도매매·오너클랜·온채널은 사업자 도매가·위탁배송(배송대행) 지원 여부를 buyNote에 적으세요.\n":""}${has("알리")||has("테무")||has("아이허브")||has("아마존")||has("타오바오")?"- 해외직구 매입처는 국제배송비·관부가세를 감안한 가격으로 쓰고, KC인증·건강기능식품 수입신고·전파인증처럼 국내 재판매에 필요한 절차를 risk에 적으세요.\n":""}- risk에는 위탁판매 시 문제될 수 있는 점(브랜드사 온라인 유통 제한, 정품 인증, 병행수입, 1인 구매 수량 제한, 상표 이미지 사용 등)을 짧게 적으세요. 없으면 빈 문자열.
+- 가격은 당신이 아는 최근 시세 기반 추정치입니다. 확신이 낮으면 confidence를 "낮음"으로 두세요. 존재하지 않는 모델을 만들지 마세요.
 
 JSON 배열만 출력하세요. 각 원소:
-{"brand":"브랜드","product":"상품명","model":"모델명/용량","category":"카테고리","coupangPrice":정수,"otherPlatform":"비교 플랫폼 이름","otherPrice":정수,"reason":"이유","unitNote":"구성/단가 환산 기준(없으면 빈 문자열)","confidence":"높음|중|낮음"}`;
+{"brand":"브랜드","product":"상품명","model":"모델명/용량","category":"카테고리","coupangPrice":정수,"otherPlatform":"매입처 플랫폼(위 목록의 이름 그대로)","otherPrice":정수,"reason":"가격 차이가 나는 이유 한두 문장","buyNote":"구매 조건","unitNote":"구성/단가 환산 기준","risk":"위탁판매 주의점","confidence":"높음|중|낮음"}`;
 }
 
 $("run").onclick=async()=>{
@@ -310,8 +357,11 @@ $("run").onclick=async()=>{
   try{
     const data=await sample.json(buildPrompt(),{modelTier:"complex",signal:ctl.signal,
       onText:({text})=>{const c=(text.match(/"brand"/g)||[]).length;setStatus(c?`후보 ${c}개 정리 중…`:"Claude가 후보를 찾는 중입니다…")}});
-    const arr=(Array.isArray(data)?data:(data&&data.items)||[]).filter(x=>x&&x.brand&&(x.product||x.model)).map(x=>({...x,coupangPrice:+x.coupangPrice,otherPrice:+x.otherPrice}));
-    if(!arr.length) throw {message:"결과가 비어 있습니다. 카테고리를 바꿔 다시 시도하세요."};
+    const arr=(Array.isArray(data)?data:(data&&data.items)||[])
+      .filter(x=>x&&x.brand&&(x.product||x.model))
+      .map(x=>({...x,coupangPrice:+x.coupangPrice,otherPrice:+x.otherPrice}))
+      .filter(x=>x.coupangPrice>x.otherPrice);
+    if(!arr.length) throw {message:"쿠팡보다 싼 후보가 없습니다. 카테고리나 매입처를 바꿔 다시 시도하세요."};
     items=arr;isSample=false;store.set("cpg.last",items);
     setStatus(`${arr.length}개 후보를 찾았습니다 · ${new Date().toLocaleString("ko-KR")}`);
     render();
@@ -324,12 +374,13 @@ $("run").onclick=async()=>{
   }finally{$("run").disabled=!sample;$("stop").hidden=true;$("progress").hidden=true}
 };
 $("stop").onclick=()=>ctl&&ctl.abort();
-$("minGap").oninput=render;$("onlyOk").onchange=render;
+["minGap","fee","extra"].forEach(id=>$(id).oninput=render);
+$("onlyOk").onchange=render;
 
 $("copy").onclick=()=>{
-  const head=["브랜드","상품","모델","카테고리","쿠팡가","비교플랫폼","비교가","차액","검증","이유","단가기준"];
+  const head=["브랜드","상품","모델","카테고리","매입처","매입가","쿠팡가","가격차","예상순이익","마진율","검증","이유","구매조건","단가기준","주의"];
   const esc=s=>'"'+String(s??"").replace(/"/g,'""')+'"';
-  const lines=[head.join(",")].concat(items.map(it=>{const g=gapOf(it);return [it.brand,it.product,it.model,it.category,g.cp,it.otherPlatform,g.op,g.gap,g.verified?"Y":"N",it.reason,it.unitNote].map(esc).join(",")}));
+  const lines=[head.join(",")].concat(items.map(it=>{const g=calc(it);return [it.brand,it.product,it.model,it.category,it.otherPlatform,g.op,g.cp,g.gap,Math.round(g.profit),(g.rate*100).toFixed(1)+"%",g.verified?"Y":"N",it.reason,it.buyNote,it.unitNote,it.risk].map(esc).join(",")}));
   const txt=lines.join("\n");
   navigator.clipboard.writeText(txt).then(()=>setStatus("CSV를 클립보드에 복사했습니다."),()=>{
     const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();setStatus("복사가 막혀 있어 텍스트를 선택해 두었습니다. Ctrl+C로 복사하세요.")});
