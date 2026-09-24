@@ -98,13 +98,17 @@ footer{color:var(--muted);font-size:12px;max-width:75ch}
   <header>
     <div class="eyebrow">브랜드 상품 · 플랫폼 간 가격 비교</div>
     <h1>쿠팡 가격차 레이더 <em>₩10,000+</em></h1>
-    <p class="lede">카테고리와 기준 차액을 고르고 버튼을 한 번 누르면, Claude가 쿠팡에서 팔리는 브랜드 상품 중 네이버쇼핑·11번가·G마켓·공식몰 등과 가격 차이가 크게 날 가능성이 높은 후보를 찾아 차액 순으로 정리합니다.</p>
+    <p class="lede">카테고리와 기준 차액을 고르고 버튼을 한 번 누르면, Claude가 쿠팡에서 팔리는 브랜드 상품 중 네이버쇼핑·11번가·G마켓·코스트코·공식몰 등과 가격 차이가 크게 날 가능성이 높은 후보를 찾아 차액 순으로 정리합니다.</p>
   </header>
 
   <section class="panel" aria-label="리서치 조건">
     <div class="field">
       <span class="lbl">카테고리 (여러 개 선택)</span>
       <div class="chips" id="cats"></div>
+    </div>
+    <div class="field">
+      <span class="lbl">비교 플랫폼 (여러 개 선택)</span>
+      <div class="chips" id="plats"></div>
     </div>
     <div class="row">
       <div class="field">
@@ -148,12 +152,13 @@ footer{color:var(--muted);font-size:12px;max-width:75ch}
     <div class="list" id="list"></div>
   </section>
 
-  <footer>검증 입력값은 이 브라우저에만 저장됩니다. 가격은 쿠폰·카드할인·배송비·옵션에 따라 달라지므로 같은 모델명·용량·구성인지 꼭 확인하세요.</footer>
+  <footer>코스트코는 회원 전용이라 가격을 보려면 로그인이 필요할 수 있고, 대용량 구성이 많아 같은 수량 기준으로 비교해야 합니다. 검증 입력값은 이 브라우저에만 저장됩니다. 가격은 쿠폰·카드할인·배송비·옵션에 따라 달라지므로 같은 모델명·용량·구성인지 꼭 확인하세요.</footer>
 </div>
 
 <script>
 (function(){
 const CATS=["가전","생활가전","주방","뷰티","건강식품","식품","유아동","패션잡화","스포츠·아웃도어","디지털","반려동물","생활용품"];
+const PLATS=["네이버쇼핑","11번가","G마켓","SSG","코스트코","브랜드 공식몰","해외직구"];
 const $=id=>document.getElementById(id);
 const won=n=>(n==null||isNaN(n))?"—":"₩"+Math.round(n).toLocaleString("ko-KR");
 const store={
@@ -161,6 +166,7 @@ const store={
   set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 };
 let selected=new Set(store.get("cpg.cats",["가전","뷰티","건강식품"]));
+let plats=new Set(store.get("cpg.plats",["네이버쇼핑","11번가","G마켓","코스트코","브랜드 공식몰","해외직구"]));
 let verify=store.get("cpg.verify",{});
 let items=store.get("cpg.last",null);
 let isSample=false;
@@ -180,6 +186,15 @@ CATS.forEach(c=>{
   catsEl.appendChild(b);
 });
 
+const platsEl=$("plats");
+PLATS.forEach(c=>{
+  const b=document.createElement("button");
+  b.type="button";b.className="chip";b.textContent=c;
+  b.setAttribute("aria-pressed",plats.has(c));
+  b.onclick=()=>{plats.has(c)?plats.delete(c):plats.add(c);b.setAttribute("aria-pressed",plats.has(c));store.set("cpg.plats",[...plats])};
+  platsEl.appendChild(b);
+});
+
 const keyOf=it=>(it.brand+"|"+(it.model||it.product)).toLowerCase();
 function links(it){
   const q=encodeURIComponent([it.brand,it.model||it.product].join(" "));
@@ -188,7 +203,8 @@ function links(it){
     ["네이버쇼핑","https://search.shopping.naver.com/search/all?query="+q],
     ["다나와","https://search.danawa.com/dsearch.php?query="+q],
     ["11번가","https://search.11st.co.kr/Search.tmall?kwd="+q],
-    ["G마켓","https://www.gmarket.co.kr/n/search?keyword="+q]
+    ["G마켓","https://www.gmarket.co.kr/n/search?keyword="+q],
+    ["코스트코","https://www.costco.co.kr/search?text="+q]
   ];
 }
 function gapOf(it){
@@ -248,7 +264,7 @@ function render(){
     else{tag.className="tag ai";tag.textContent="AI 추정 · 신뢰도 "+(it.confidence||"—")}
     const b=el.querySelectorAll(".price b");b[0].textContent=won(g.cp);b[1].textContent=won(g.op);
     el.querySelector(".op").textContent=it.otherPlatform||"타 플랫폼";
-    el.querySelector(".why").textContent=(it.category?"["+it.category+"] ":"")+(it.reason||"");
+    el.querySelector(".why").textContent=(it.category?"["+it.category+"] ":"")+(it.reason||"")+(it.unitNote?" · 단가 기준: "+it.unitNote:"");
     const L=el.querySelector(".links");
     links(it).forEach(([n,u])=>{const a=document.createElement("a");a.href=u;a.target="_blank";a.rel="noopener";a.textContent=n+" 검색";L.appendChild(a)});
     el.querySelector(".vol").textContent=(it.otherPlatform||"타 플랫폼")+" 현재가";
@@ -269,8 +285,10 @@ ready.then(s=>{sample=s;if(!s){$("run").disabled=true;setStatus("이 화면에�
 function buildPrompt(){
   const cats=[...selected];const min=+$("minGap").value||10000;
   const n=+$("count").value;const dir=$("dir").value;const brands=$("brands").value.trim();
+  const pl=[...plats];
+  const costco=pl.includes("코스트코");
   const dirText={both:"쿠팡이 더 싸거나 더 비싼 경우 모두",coupang_cheaper:"쿠팡이 다른 플랫폼보다 더 싼 경우",coupang_pricier:"쿠팡이 다른 플랫폼보다 더 비싼 경우"}[dir];
-  return `당신은 한국 이커머스 가격 리서처입니다. 쿠팡에서 판매 중인 "브랜드" 정품 상품 가운데, 네이버쇼핑 최저가·11번가·G마켓·SSG·브랜드 공식몰·해외직구(아이허브/아마존) 등 다른 플랫폼과 가격 차이가 ${min.toLocaleString("ko-KR")}원 이상 날 가능성이 높은 상품 ${n}개를 찾아주세요.
+  return `당신은 한국 이커머스 가격 리서처입니다. 쿠팡에서 판매 중인 "브랜드" 정품 상품 가운데, 다른 플랫폼(${pl.length?pl.join(", "):"네이버쇼핑, 11번가, G마켓, 코스트코, 브랜드 공식몰, 해외직구"})과 가격 차이가 ${min.toLocaleString("ko-KR")}원 이상 날 가능성이 높은 상품 ${n}개를 찾아주세요.
 
 조건:
 - 카테고리: ${cats.length?cats.join(", "):"전체"}
@@ -278,10 +296,10 @@ function buildPrompt(){
 ${brands?"- 우선 검토할 브랜드: "+brands+"\n":""}- 모델명·용량·구성을 구체적으로 적어 소비자가 같은 상품을 검색해 비교할 수 있게 하세요.
 - 가격은 당신이 알고 있는 최근 시세 기준의 추정치(원)입니다. 확신이 낮으면 confidence를 "낮음"으로 두세요. 존재하지 않는 모델을 만들지 마세요.
 - 차이가 나는 구조적 이유(로켓배송 매입가, 공식몰 쿠폰, 병행수입/직구, 묶음 구성 차이, 카드 할인 등)를 reason에 한두 문장으로 쓰세요.
-- 차액이 ${min.toLocaleString("ko-KR")}원 미만인 상품은 넣지 마세요.
+${costco?`- 코스트코(코스트코코리아 온라인몰·매장)와 비교할 때는 코스트코의 대용량·묶음 구성을 쿠팡의 같은 구성(또는 같은 수량으로 환산한 가격)과 비교하고, 환산 방식을 unitNote에 적으세요(예: "1L당", "캡슐 360개 기준"). 코스트코는 회원제라 연회비가 별도이고 매장가와 온라인가가 다를 수 있다는 점을 reason에 반영하세요. 코스트코 전용 브랜드(커클랜드 등)는 쿠팡에 같은 상품이 실제로 판매되는 경우에만 넣으세요.\n`:""}- 차액이 ${min.toLocaleString("ko-KR")}원 미만인 상품은 넣지 마세요.
 
 JSON 배열만 출력하세요. 각 원소:
-{"brand":"브랜드","product":"상품명","model":"모델명/용량","category":"카테고리","coupangPrice":정수,"otherPlatform":"비교 플랫폼 이름","otherPrice":정수,"reason":"이유","confidence":"높음|중|낮음"}`;
+{"brand":"브랜드","product":"상품명","model":"모델명/용량","category":"카테고리","coupangPrice":정수,"otherPlatform":"비교 플랫폼 이름","otherPrice":정수,"reason":"이유","unitNote":"구성/단가 환산 기준(없으면 빈 문자열)","confidence":"높음|중|낮음"}`;
 }
 
 $("run").onclick=async()=>{
@@ -309,9 +327,9 @@ $("stop").onclick=()=>ctl&&ctl.abort();
 $("minGap").oninput=render;$("onlyOk").onchange=render;
 
 $("copy").onclick=()=>{
-  const head=["브랜드","상품","모델","카테고리","쿠팡가","비교플랫폼","비교가","차액","검증","이유"];
+  const head=["브랜드","상품","모델","카테고리","쿠팡가","비교플랫폼","비교가","차액","검증","이유","단가기준"];
   const esc=s=>'"'+String(s??"").replace(/"/g,'""')+'"';
-  const lines=[head.join(",")].concat(items.map(it=>{const g=gapOf(it);return [it.brand,it.product,it.model,it.category,g.cp,it.otherPlatform,g.op,g.gap,g.verified?"Y":"N",it.reason].map(esc).join(",")}));
+  const lines=[head.join(",")].concat(items.map(it=>{const g=gapOf(it);return [it.brand,it.product,it.model,it.category,g.cp,it.otherPlatform,g.op,g.gap,g.verified?"Y":"N",it.reason,it.unitNote].map(esc).join(",")}));
   const txt=lines.join("\n");
   navigator.clipboard.writeText(txt).then(()=>setStatus("CSV를 클립보드에 복사했습니다."),()=>{
     const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();setStatus("복사가 막혀 있어 텍스트를 선택해 두었습니다. Ctrl+C로 복사하세요.")});
