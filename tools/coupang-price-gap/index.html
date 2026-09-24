@@ -1,0 +1,322 @@
+<title>쿠팡 가격차 레이더</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --ink:#12202F; --muted:#5E6B7A; --line:#D5DBE2;
+  --accent:#1B4F8A; --accent-ink:#FFFFFF; --gap:#C8322A; --gap-soft:#FBE7E5;
+  --ok:#1D7F55; --ok-soft:#E1F3EA; --warn:#9A6400; --warn-soft:#FDF1D8;
+  --chip:#E3E8EE;
+  --f-display:"Black Han Sans","IBM Plex Sans KR",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0E1620; --surface:#16212D; --ink:#E6ECF2; --muted:#94A2B2; --line:#2A3847;
+    --accent:#6FA4E0; --accent-ink:#0B1520; --gap:#FF7A6E; --gap-soft:#3A1D1C;
+    --ok:#5FD1A0; --ok-soft:#14322A; --warn:#F2BE5C; --warn-soft:#352914; --chip:#223040;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E1620; --surface:#16212D; --ink:#E6ECF2; --muted:#94A2B2; --line:#2A3847;
+  --accent:#6FA4E0; --accent-ink:#0B1520; --gap:#FF7A6E; --gap-soft:#3A1D1C;
+  --ok:#5FD1A0; --ok-soft:#14322A; --warn:#F2BE5C; --warn-soft:#352914; --chip:#223040;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:28px 64px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;gap:22px}
+header{display:grid;gap:6px}
+.eyebrow{font-size:12px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;font-weight:500}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,5vw,44px);line-height:1.1;margin:0;text-wrap:balance}
+h1 em{font-style:normal;color:var(--gap)}
+.lede{margin:0;color:var(--muted);max-width:62ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:16px}
+.row{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end}
+.field{display:grid;gap:6px;min-width:0}
+.field>label,.field>.lbl{font-size:12px;color:var(--muted);letter-spacing:.04em;font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+input[type=number],input[type=text],select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;min-width:0}
+input[type=number]{width:130px;font-family:var(--f-mono)}
+.go{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{font:inherit;font-weight:700;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 14px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);padding:13px 22px;font-size:16px}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn:focus-visible,.chip:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.status{color:var(--muted);font-size:13px}
+.status.err{color:var(--gap)}
+.notice{font-size:13px;color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:10px 12px;margin:0}
+.summary{display:flex;flex-wrap:wrap;gap:10px 28px;align-items:baseline}
+.summary b{font-family:var(--f-mono);font-size:20px}
+.summary span{color:var(--muted);font-size:13px}
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;border-radius:4px;padding:2px 7px}
+.tag.sample{background:var(--chip);color:var(--muted)}
+.tag.ai{background:var(--warn-soft);color:var(--warn)}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.no{background:var(--chip);color:var(--muted);text-decoration:line-through}
+.list{display:grid;gap:10px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:10px;display:grid;grid-template-columns:132px 1fr;overflow:hidden}
+.gapcol{background:var(--gap-soft);color:var(--gap);padding:14px 12px;display:grid;align-content:center;gap:2px;text-align:center}
+.gapcol .n{font-family:var(--f-mono);font-weight:600;font-size:20px;font-variant-numeric:tabular-nums}
+.gapcol .u{font-size:11px;letter-spacing:.06em}
+.item.verified .gapcol{background:var(--ok-soft);color:var(--ok)}
+.body{padding:14px 16px;display:grid;gap:10px;min-width:0}
+.top{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.brand{font-weight:700}
+.name{color:var(--ink);overflow-wrap:anywhere}
+.prices{display:flex;flex-wrap:wrap;gap:8px 22px;font-variant-numeric:tabular-nums}
+.price{display:grid}
+.price small{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.price b{font-family:var(--f-mono);font-weight:600;font-size:16px}
+.price.cheap b{color:var(--ok)}
+.why{font-size:13px;color:var(--muted);margin:0;max-width:75ch}
+.links{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:13px}
+.links a{color:var(--accent);text-decoration:none;border-bottom:1px solid currentColor}
+details.verify{font-size:13px}
+details.verify summary{cursor:pointer;color:var(--muted)}
+.vgrid{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:8px}
+.vgrid input[type=number]{width:120px}
+.empty{color:var(--muted);text-align:center;padding:28px 0}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center}
+.progress{height:3px;background:var(--line);border-radius:2px;overflow:hidden}
+.progress i{display:block;height:100%;width:30%;background:var(--accent);animation:slide 1.2s ease-in-out infinite}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(340%)}}
+@media (prefers-reduced-motion:reduce){.progress i{animation:none;width:100%;opacity:.5}}
+@media (max-width:560px){
+  .item{grid-template-columns:1fr}
+  .gapcol{grid-auto-flow:column;justify-content:start;align-items:baseline;gap:8px;text-align:left;padding:10px 16px}
+}
+footer{color:var(--muted);font-size:12px;max-width:75ch}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">브랜드 상품 · 플랫폼 간 가격 비교</div>
+    <h1>쿠팡 가격차 레이더 <em>₩10,000+</em></h1>
+    <p class="lede">카테고리와 기준 차액을 고르고 버튼을 한 번 누르면, Claude가 쿠팡에서 팔리는 브랜드 상품 중 네이버쇼핑·11번가·G마켓·공식몰 등과 가격 차이가 크게 날 가능성이 높은 후보를 찾아 차액 순으로 정리합니다.</p>
+  </header>
+
+  <section class="panel" aria-label="리서치 조건">
+    <div class="field">
+      <span class="lbl">카테고리 (여러 개 선택)</span>
+      <div class="chips" id="cats"></div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="minGap">최소 차액 (원)</label>
+        <input type="number" id="minGap" value="10000" min="0" step="1000">
+      </div>
+      <div class="field">
+        <label for="count">후보 수</label>
+        <select id="count"><option>10</option><option selected>15</option><option>20</option></select>
+      </div>
+      <div class="field">
+        <label for="dir">방향</label>
+        <select id="dir">
+          <option value="both" selected>양방향</option>
+          <option value="coupang_cheaper">쿠팡이 더 싼 상품</option>
+          <option value="coupang_pricier">쿠팡이 더 비싼 상품</option>
+        </select>
+      </div>
+      <div class="field" style="flex:1 1 220px">
+        <label for="brands">관심 브랜드 (선택, 쉼표 구분)</label>
+        <input type="text" id="brands" placeholder="예: 다이슨, 필립스, 나이키">
+      </div>
+    </div>
+    <div class="go">
+      <button class="btn primary" id="run" type="button">원클릭 AI 리서치</button>
+      <button class="btn" id="stop" type="button" hidden>중지</button>
+      <span class="status" id="status" role="status" aria-live="polite"></span>
+    </div>
+    <div class="progress" id="progress" hidden><i></i></div>
+    <p class="notice">AI가 알려주는 가격은 학습된 시세를 바탕으로 한 <b>추정치</b>입니다. 실시간 가격이 아니므로, 각 카드의 검색 링크로 현재가를 확인한 뒤 <b>검증</b>에 실제 가격을 입력하세요. 검증한 차액이 기준 이상이면 초록색으로 표시됩니다.</p>
+  </section>
+
+  <section class="panel" aria-label="결과">
+    <div class="toolbar">
+      <div class="summary" id="summary"></div>
+      <div class="go">
+        <label class="status"><input type="checkbox" id="onlyOk"> 검증 통과만</label>
+        <button class="btn" id="copy" type="button">CSV 복사</button>
+      </div>
+    </div>
+    <div class="list" id="list"></div>
+  </section>
+
+  <footer>검증 입력값은 이 브라우저에만 저장됩니다. 가격은 쿠폰·카드할인·배송비·옵션에 따라 달라지므로 같은 모델명·용량·구성인지 꼭 확인하세요.</footer>
+</div>
+
+<script>
+(function(){
+const CATS=["가전","생활가전","주방","뷰티","건강식품","식품","유아동","패션잡화","스포츠·아웃도어","디지털","반려동물","생활용품"];
+const $=id=>document.getElementById(id);
+const won=n=>(n==null||isNaN(n))?"—":"₩"+Math.round(n).toLocaleString("ko-KR");
+const store={
+  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+let selected=new Set(store.get("cpg.cats",["가전","뷰티","건강식품"]));
+let verify=store.get("cpg.verify",{});
+let items=store.get("cpg.last",null);
+let isSample=false;
+if(!items){isSample=true;items=[
+  {brand:"예시브랜드A",product:"무선 청소기 (예시)",model:"MODEL-A1",category:"가전",coupangPrice:489000,otherPlatform:"네이버쇼핑",otherPrice:452000,reason:"예시 행입니다. 공식 스토어 쿠폰이 붙는 상품은 오픈마켓 최저가가 쿠팡보다 낮은 경우가 많습니다.",confidence:"중"},
+  {brand:"예시브랜드B",product:"전동칫솔 본체+리필 세트 (예시)",model:"MODEL-B2",category:"뷰티",coupangPrice:129000,otherPlatform:"11번가",otherPrice:145000,reason:"예시 행입니다. 로켓배송 대량 매입 상품은 쿠팡이 더 싼 경우가 있습니다.",confidence:"중"},
+  {brand:"예시브랜드C",product:"오메가3 180캡슐 (예시)",model:"MODEL-C3",category:"건강식품",coupangPrice:52000,otherPlatform:"해외직구",otherPrice:38000,reason:"예시 행입니다. 수입 영양제는 직구가와 국내 판매가 차이가 큽니다.",confidence:"낮음"}
+];}
+
+// category chips
+const catsEl=$("cats");
+CATS.forEach(c=>{
+  const b=document.createElement("button");
+  b.type="button";b.className="chip";b.textContent=c;
+  b.setAttribute("aria-pressed",selected.has(c));
+  b.onclick=()=>{selected.has(c)?selected.delete(c):selected.add(c);b.setAttribute("aria-pressed",selected.has(c));store.set("cpg.cats",[...selected])};
+  catsEl.appendChild(b);
+});
+
+const keyOf=it=>(it.brand+"|"+(it.model||it.product)).toLowerCase();
+function links(it){
+  const q=encodeURIComponent([it.brand,it.model||it.product].join(" "));
+  return [
+    ["쿠팡","https://www.coupang.com/np/search?q="+q],
+    ["네이버쇼핑","https://search.shopping.naver.com/search/all?query="+q],
+    ["다나와","https://search.danawa.com/dsearch.php?query="+q],
+    ["11번가","https://search.11st.co.kr/Search.tmall?kwd="+q],
+    ["G마켓","https://www.gmarket.co.kr/n/search?keyword="+q]
+  ];
+}
+function gapOf(it){
+  const v=verify[keyOf(it)];
+  if(v&&v.cp>0&&v.op>0) return {gap:Math.abs(v.cp-v.op),cp:v.cp,op:v.op,verified:true};
+  return {gap:Math.abs((+it.coupangPrice||0)-(+it.otherPrice||0)),cp:+it.coupangPrice,op:+it.otherPrice,verified:false};
+}
+
+function render(){
+  const min=+$("minGap").value||0;
+  const only=$("onlyOk").checked;
+  const rows=items.map(it=>({it,g:gapOf(it)}))
+    .filter(r=>!only||(r.g.verified&&r.g.gap>=min))
+    .sort((a,b)=>b.g.gap-a.g.gap);
+  const list=$("list");list.textContent="";
+  const pass=rows.filter(r=>r.g.gap>=min);
+  const okCount=rows.filter(r=>r.g.verified&&r.g.gap>=min).length;
+  $("summary").innerHTML="";
+  [[rows.length,"후보"],[pass.length,"기준 이상 ("+won(min)+")"],[okCount,"검증 통과"],[rows.length?won(rows[0].g.gap):"—","최대 차액"]].forEach(([n,l])=>{
+    const d=document.createElement("div");d.innerHTML="<b></b> <span></span>";
+    d.querySelector("b").textContent=n;d.querySelector("span").textContent=l;$("summary").appendChild(d);
+  });
+  if(isSample){const d=document.createElement("div");d.innerHTML='<span class="tag sample">예시 데이터 · 리서치를 실행하면 교체됩니다</span>';$("summary").appendChild(d)}
+  if(!rows.length){list.innerHTML='<div class="empty">조건에 맞는 상품이 없습니다. 최소 차액을 낮추거나 리서치를 다시 실행하세요.</div>';return}
+  rows.forEach(({it,g})=>{
+    const k=keyOf(it);const below=g.gap<min;
+    const el=document.createElement("article");
+    el.className="item"+(g.verified&&!below?" verified":"");
+    if(below) el.style.opacity=".6";
+    const coupangCheaper=g.cp<g.op;
+    el.innerHTML=`
+      <div class="gapcol"><span class="u">${g.verified?"검증 차액":"예상 차액"}</span><span class="n"></span><span class="u"></span></div>
+      <div class="body">
+        <div class="top"><span class="brand"></span><span class="name"></span><span class="tag"></span></div>
+        <div class="prices">
+          <div class="price ${coupangCheaper?"cheap":""}"><small>쿠팡</small><b></b></div>
+          <div class="price ${coupangCheaper?"":"cheap"}"><small class="op"></small><b></b></div>
+        </div>
+        <p class="why"></p>
+        <div class="links"></div>
+        <details class="verify"><summary>검증: 실제 가격 입력</summary>
+          <div class="vgrid">
+            <div class="field"><label>쿠팡 현재가</label><input type="number" class="vcp" min="0" step="100"></div>
+            <div class="field"><label class="vol"></label><input type="number" class="vop" min="0" step="100"></div>
+            <button class="btn vsave" type="button">저장</button>
+            <button class="btn vclear" type="button">초기화</button>
+          </div>
+        </details>
+      </div>`;
+    el.querySelector(".gapcol .n").textContent=won(g.gap);
+    el.querySelector(".gapcol .u:last-child").textContent=coupangCheaper?"쿠팡이 쌈":"타 플랫폼이 쌈";
+    el.querySelector(".brand").textContent=it.brand;
+    el.querySelector(".name").textContent=[it.product,it.model?"· "+it.model:""].join(" ");
+    const tag=el.querySelector(".tag");
+    if(g.verified){tag.className="tag "+(below?"no":"ok");tag.textContent=below?"검증: 기준 미달":"검증 완료"}
+    else if(isSample){tag.className="tag sample";tag.textContent="예시"}
+    else{tag.className="tag ai";tag.textContent="AI 추정 · 신뢰도 "+(it.confidence||"—")}
+    const b=el.querySelectorAll(".price b");b[0].textContent=won(g.cp);b[1].textContent=won(g.op);
+    el.querySelector(".op").textContent=it.otherPlatform||"타 플랫폼";
+    el.querySelector(".why").textContent=(it.category?"["+it.category+"] ":"")+(it.reason||"");
+    const L=el.querySelector(".links");
+    links(it).forEach(([n,u])=>{const a=document.createElement("a");a.href=u;a.target="_blank";a.rel="noopener";a.textContent=n+" 검색";L.appendChild(a)});
+    el.querySelector(".vol").textContent=(it.otherPlatform||"타 플랫폼")+" 현재가";
+    const v=verify[k]||{};const vcp=el.querySelector(".vcp"),vop=el.querySelector(".vop");
+    vcp.value=v.cp||"";vop.value=v.op||"";
+    el.querySelector(".vsave").onclick=()=>{verify[k]={cp:+vcp.value,op:+vop.value,at:Date.now()};store.set("cpg.verify",verify);render()};
+    el.querySelector(".vclear").onclick=()=>{delete verify[k];store.set("cpg.verify",verify);render()};
+    list.appendChild(el);
+  });
+}
+
+function setStatus(t,err){const s=$("status");s.textContent=t;s.className="status"+(err?" err":"")}
+
+let sample=null,ctl=null;
+const ready=window.claude&&window.claude.use?window.claude.use("sample"):Promise.resolve(null);
+ready.then(s=>{sample=s;if(!s){$("run").disabled=true;setStatus("이 화면에서는 AI 리서치를 사용할 수 없습니다. claude.ai에 로그인한 상태로 열어 주세요.",true)}}).catch(()=>{});
+
+function buildPrompt(){
+  const cats=[...selected];const min=+$("minGap").value||10000;
+  const n=+$("count").value;const dir=$("dir").value;const brands=$("brands").value.trim();
+  const dirText={both:"쿠팡이 더 싸거나 더 비싼 경우 모두",coupang_cheaper:"쿠팡이 다른 플랫폼보다 더 싼 경우",coupang_pricier:"쿠팡이 다른 플랫폼보다 더 비싼 경우"}[dir];
+  return `당신은 한국 이커머스 가격 리서처입니다. 쿠팡에서 판매 중인 "브랜드" 정품 상품 가운데, 네이버쇼핑 최저가·11번가·G마켓·SSG·브랜드 공식몰·해외직구(아이허브/아마존) 등 다른 플랫폼과 가격 차이가 ${min.toLocaleString("ko-KR")}원 이상 날 가능성이 높은 상품 ${n}개를 찾아주세요.
+
+조건:
+- 카테고리: ${cats.length?cats.join(", "):"전체"}
+- 방향: ${dirText}
+${brands?"- 우선 검토할 브랜드: "+brands+"\n":""}- 모델명·용량·구성을 구체적으로 적어 소비자가 같은 상품을 검색해 비교할 수 있게 하세요.
+- 가격은 당신이 알고 있는 최근 시세 기준의 추정치(원)입니다. 확신이 낮으면 confidence를 "낮음"으로 두세요. 존재하지 않는 모델을 만들지 마세요.
+- 차이가 나는 구조적 이유(로켓배송 매입가, 공식몰 쿠폰, 병행수입/직구, 묶음 구성 차이, 카드 할인 등)를 reason에 한두 문장으로 쓰세요.
+- 차액이 ${min.toLocaleString("ko-KR")}원 미만인 상품은 넣지 마세요.
+
+JSON 배열만 출력하세요. 각 원소:
+{"brand":"브랜드","product":"상품명","model":"모델명/용량","category":"카테고리","coupangPrice":정수,"otherPlatform":"비교 플랫폼 이름","otherPrice":정수,"reason":"이유","confidence":"높음|중|낮음"}`;
+}
+
+$("run").onclick=async()=>{
+  if(!sample) return;
+  ctl=new AbortController();
+  $("run").disabled=true;$("stop").hidden=false;$("progress").hidden=false;
+  setStatus("Claude가 후보를 찾는 중입니다…");
+  try{
+    const data=await sample.json(buildPrompt(),{modelTier:"complex",signal:ctl.signal,
+      onText:({text})=>{const c=(text.match(/"brand"/g)||[]).length;setStatus(c?`후보 ${c}개 정리 중…`:"Claude가 후보를 찾는 중입니다…")}});
+    const arr=(Array.isArray(data)?data:(data&&data.items)||[]).filter(x=>x&&x.brand&&(x.product||x.model)).map(x=>({...x,coupangPrice:+x.coupangPrice,otherPrice:+x.otherPrice}));
+    if(!arr.length) throw {message:"결과가 비어 있습니다. 카테고리를 바꿔 다시 시도하세요."};
+    items=arr;isSample=false;store.set("cpg.last",items);
+    setStatus(`${arr.length}개 후보를 찾았습니다 · ${new Date().toLocaleString("ko-KR")}`);
+    render();
+  }catch(e){
+    const c=e&&e.code;
+    if(c==="cancelled") setStatus("중지했습니다.");
+    else if(c==="not_granted"){setStatus("AI 사용 권한이 없어 리서치를 실행할 수 없습니다.",true)}
+    else if(c==="rate_limited") setStatus("요청이 많습니다. 잠시 후 다시 시도하세요.",true);
+    else setStatus("리서치에 실패했습니다: "+((e&&e.message)||"알 수 없는 오류"),true);
+  }finally{$("run").disabled=!sample;$("stop").hidden=true;$("progress").hidden=true}
+};
+$("stop").onclick=()=>ctl&&ctl.abort();
+$("minGap").oninput=render;$("onlyOk").onchange=render;
+
+$("copy").onclick=()=>{
+  const head=["브랜드","상품","모델","카테고리","쿠팡가","비교플랫폼","비교가","차액","검증","이유"];
+  const esc=s=>'"'+String(s??"").replace(/"/g,'""')+'"';
+  const lines=[head.join(",")].concat(items.map(it=>{const g=gapOf(it);return [it.brand,it.product,it.model,it.category,g.cp,it.otherPlatform,g.op,g.gap,g.verified?"Y":"N",it.reason].map(esc).join(",")}));
+  const txt=lines.join("\n");
+  navigator.clipboard.writeText(txt).then(()=>setStatus("CSV를 클립보드에 복사했습니다."),()=>{
+    const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();setStatus("복사가 막혀 있어 텍스트를 선택해 두었습니다. Ctrl+C로 복사하세요.")});
+};
+
+render();
+})();
+</script>
